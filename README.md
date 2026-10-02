@@ -119,6 +119,8 @@ types/               Types TypeScript
 
 La même application fonctionne dans un navigateur, à partir du même code (React Native Web).
 
+- En ligne : https://darete.up.railway.app et https://amineabida-png.github.io/daret-manager/
+
 | | |
 |---|---|
 | Construire (racine du domaine) | `npm run build:web` → dossier `dist-web/` |
@@ -134,7 +136,7 @@ La même application fonctionne dans un navigateur, à partir du même code (Rea
 
 Paramètres → **Compte en ligne** : créer un compte (e-mail + mot de passe) pour enregistrer les darets sur le serveur et les retrouver sur tous les appareils (APK, site Railway, site GitHub Pages).
 
-- **Serveur** : `web/serveur.js` + `web/api.js` sur Railway (service `daret-manager`), relié au PostgreSQL du projet par la variable `DATABASE_URL = ${{Postgres.DATABASE_URL}}`.
+- **Serveur** : `web/serveur.js` + `web/api.js` sur Railway (service `daret-manager`, https://darete.up.railway.app), relié au PostgreSQL du projet par la variable `DATABASE_URL = ${{Postgres.DATABASE_URL}}`.
 - **Base** : schéma séparé `daret_manager` (tables `comptes`, `sessions`, `donnees`), sans contact avec les tables des autres applications.
 - **Sécurité** : mots de passe hachés (scrypt), jetons de session stockés hachés (SHA-256), 10 tentatives de connexion max. par quart d'heure, accès limité au site GitHub Pages et au site Railway.
 - **Fonctionnement** : chaque modification est envoyée 1,5 s plus tard ; les changements des autres appareils sont récupérés à l'ouverture et chaque minute. Un numéro de version empêche un appareil d'écraser sans le savoir les modifications d'un autre. Sans connexion Internet, l'application continue de fonctionner et envoie les modifications au retour du réseau.

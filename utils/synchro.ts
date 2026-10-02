@@ -9,9 +9,9 @@ import { db, signalerChangement, surChangement } from '../db';
 import { exporterTout, importerTout, type Sauvegarde } from '../db/sauvegarde';
 import { t } from '../i18n';
 
-const SERVEUR = 'https://daret-manager-production.up.railway.app';
-/** Sur le site Railway lui-même, l'API est à la même adresse. */
-const API = Platform.OS === 'web' && typeof location !== 'undefined' && location.origin === SERVEUR ? '' : SERVEUR;
+const SERVEUR = 'https://darete.up.railway.app';
+/** Sur un site Railway (quel que soit son domaine), l'API est à la même adresse. */
+const API = Platform.OS === 'web' && typeof location !== 'undefined' && location.hostname.endsWith('.up.railway.app') ? '' : SERVEUR;
 
 export type StatutSynchro = 'deconnecte' | 'en_cours' | 'a_jour' | 'hors_ligne' | 'erreur';
 export interface EtatSynchro { email: string | null; statut: StatutSynchro; derniere: string | null; message: string | null }
