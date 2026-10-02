@@ -11,6 +11,7 @@ import { definirLangue, t } from '../i18n';
 import { ThemeProvider, useTheme } from '../components/theme';
 import { Chargement } from '../components/ui';
 import { initialiserNotifications, replanifierRappels } from '../utils/notifications';
+import { demarrerSynchro } from '../utils/synchro';
 
 function Navigation() {
   const { c, rtl } = useTheme();
@@ -44,6 +45,7 @@ function Navigation() {
         <Stack.Screen name="membre/nouveau" options={{ title: t('Ajouter des membres'), presentation: 'modal' }} />
         <Stack.Screen name="membre/[id]/index" options={{ title: t('Fiche membre') }} />
         <Stack.Screen name="membre/[id]/modifier" options={{ title: t('Modifier le membre'), presentation: 'modal' }} />
+        <Stack.Screen name="compte" options={{ title: t('Compte en ligne'), presentation: 'modal' }} />
       </Stack>
     </View>
   );
@@ -59,6 +61,7 @@ export default function RootLayout() {
       await db();
       definirLangue((await lireParametres().catch(() => null))?.langue ?? 'fr');
       setPret(true);
+      demarrerSynchro().catch(() => {});
       await initialiserNotifications().catch(() => false);
       replanifierRappels().catch(() => {});
       // Après chaque modification, les rappels sont reprogrammés (regroupés sur 1,5 s)

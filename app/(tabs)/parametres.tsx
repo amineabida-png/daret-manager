@@ -12,6 +12,7 @@ import { chargerDemo, supprimerDemo } from '../../db/demo';
 import { choisirSauvegarde, exporterJSON } from '../../utils/fichiers';
 import { modeleWhatsAppDefaut, remplirModele } from '../../utils/partage';
 import { initialiserNotifications, RAPPELS_DISPONIBLES, replanifierRappels } from '../../utils/notifications';
+import { deconnecter, envoyer, etatSynchro, recuperer, surEtatSynchro, type EtatSynchro } from '../../utils/synchro';
 import type { Parametres } from '../../types';
 import { t } from '../../i18n';
 import { formatDH } from '../../utils/montant';
@@ -24,6 +25,8 @@ export default function ParametresEcran() {
   const [notifOk, setNotifOk] = useState<boolean | null>(null);
   const [occupe, setOccupe] = useState<string | null>(null);
 
+  const [synchro, setSynchro] = useState<EtatSynchro>(etatSynchro());
+  useEffect(() => surEtatSynchro(setSynchro), []);
   useEffect(() => { if (data) setModele(data.modele_whatsapp); }, [data]);
   useEffect(() => { Notifications.getPermissionsAsync().then(p => setNotifOk(p.status === 'granted')).catch(() => setNotifOk(false)); }, []);
 
@@ -37,6 +40,28 @@ export default function ParametresEcran() {
 
   return (
     <Ecran>
+      <SousTitre>{t('Compte en ligne')}</SousTitre>
+      {synchro.email ? (
+        <Groupe>
+          <LigneMenu icone={synchro.statut === 'a_jour' ? 'cloud-done-outline' : synchro.statut === 'en_cours' ? 'sync-outline' : 'cloud-offline-outline'}
+            couleur={synchro.statut === 'erreur' || synchro.statut === 'hors_ligne' ? c.or : undefined}
+            titre={synchro.email}
+            sousTitre={synchro.statut === 'en_cours' ? t('Synchronisation…')
+              : synchro.statut === 'a_jour' ? t('Synchronisé · {heure}', { heure: synchro.derniere ? new Date(synchro.derniere).toLocaleTimeString(data.langue === 'ar' ? 'ar-MA' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }) : '' })
+              : synchro.message ?? t('Hors ligne : les modifications seront envoyées plus tard.')} />
+          <LigneMenu icone="sync-outline" titre={t('Synchroniser maintenant')} chargement={occupe === 'synchro'}
+            onPress={() => action('synchro', async () => { await envoyer(); await recuperer(); })} />
+          <LigneMenu icone="log-out-outline" titre={t('Se déconnecter')} couleur={c.danger} onPress={() => action('deco', async () => {
+            if (await confirmer(t('Se déconnecter ?'), t('Les darets restent sur cet appareil, mais ne seront plus synchronisées.'), t('Se déconnecter'))) await deconnecter();
+          })} />
+        </Groupe>
+      ) : (
+        <Groupe>
+          <LigneMenu icone="cloud-upload-outline" titre={t('Se connecter ou créer un compte')}
+            sousTitre={synchro.message ?? t('Enregistrez vos darets en ligne et retrouvez-les sur tous vos appareils.')} onPress={() => router.push('/compte')} />
+        </Groupe>
+      )}
+
       <SousTitre>{t('Langue')} · اللغة</SousTitre>
       <Segment<Parametres['langue']> valeur={data.langue} onChange={async v => {
         if (v === data.langue) return;

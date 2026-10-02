@@ -6,6 +6,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const api = require('./api');
 
 // dist/ à côté du serveur (déploiement Railway) ou dist-web/ du projet (essai local)
 const RACINE = [path.join(__dirname, 'dist'), path.join(__dirname, '..', 'dist-web')].find(d => fs.existsSync(d)) || path.join(__dirname, 'dist');
@@ -17,7 +18,8 @@ const TYPES = {
 };
 const COMPRESSIBLES = /\.(html|js|json|webmanifest|wasm|css|svg|ttf)$/;
 
-http.createServer((req, res) => {
+http.createServer(async (req, res) => {
+  if ((req.url || '').startsWith('/api/')) { await api.traiter(req, res); return; }
   let chemin = decodeURIComponent((req.url || '/').split('?')[0]);
   if (chemin === '/sante') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
   let fichier = path.normalize(path.join(RACINE, chemin));
@@ -42,4 +44,7 @@ http.createServer((req, res) => {
     res.writeHead(200, entetes);
     flux.pipe(res);
   }
-}).listen(PORT, () => console.log(`Daret Manager en ligne sur le port ${PORT}`));
+}).listen(PORT, () => {
+  console.log(`Daret Manager en ligne sur le port ${PORT}`);
+  api.initialiser().then(() => console.log(process.env.DATABASE_URL ? 'PostgreSQL prêt (schéma daret_manager)' : 'Sans base : synchronisation désactivée')).catch(e => console.error('PostgreSQL :', e.message));
+});

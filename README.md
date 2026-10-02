@@ -129,3 +129,13 @@ La même application fonctionne dans un navigateur, à partir du même code (Rea
 - **Installer sur l'écran d'accueil** : Android (Chrome) → menu ⋮ → *Installer l'application* ; iPhone / iPad (Safari) → bouton Partager → *Sur l'écran d'accueil*. L'application s'ouvre alors en plein écran et fonctionne hors ligne.
 - **Différences avec l'APK** : pas de rappels par notification ni d'import des contacts (non disponibles dans un navigateur) ; l'ordre manuel des tours se règle avec des flèches ; exports téléchargés ou partagés via le menu du téléphone.
 - **Fichiers propres au web** : `db/moteur.web.ts` (base SQLite navigateur), `utils/fichiers.web.ts` (exports), `web/` (finalisation PWA, service worker hors ligne, serveur Node pour Railway).
+
+## Compte en ligne et synchronisation (PostgreSQL)
+
+Paramètres → **Compte en ligne** : créer un compte (e-mail + mot de passe) pour enregistrer les darets sur le serveur et les retrouver sur tous les appareils (APK, site Railway, site GitHub Pages).
+
+- **Serveur** : `web/serveur.js` + `web/api.js` sur Railway (service `daret-manager`), relié au PostgreSQL du projet par la variable `DATABASE_URL = ${{Postgres.DATABASE_URL}}`.
+- **Base** : schéma séparé `daret_manager` (tables `comptes`, `sessions`, `donnees`), sans contact avec les tables des autres applications.
+- **Sécurité** : mots de passe hachés (scrypt), jetons de session stockés hachés (SHA-256), 10 tentatives de connexion max. par quart d'heure, accès limité au site GitHub Pages et au site Railway.
+- **Fonctionnement** : chaque modification est envoyée 1,5 s plus tard ; les changements des autres appareils sont récupérés à l'ouverture et chaque minute. Un numéro de version empêche un appareil d'écraser sans le savoir les modifications d'un autre. Sans connexion Internet, l'application continue de fonctionner et envoie les modifications au retour du réseau.
+- **API** : `POST /api/inscription`, `POST /api/connexion`, `POST /api/deconnexion`, `GET /api/donnees`, `PUT /api/donnees`, `DELETE /api/compte`.
