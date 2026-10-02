@@ -22,6 +22,8 @@ http.createServer((req, res) => {
   if (chemin === '/sante') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
   let fichier = path.normalize(path.join(RACINE, chemin));
   if (!fichier.startsWith(RACINE)) { res.writeHead(403); return res.end(); }
+  // Railway n'envoie pas les dossiers « node_modules » : ils sont déployés sous le nom « modules_npm »
+  if (!fs.existsSync(fichier) && fichier.includes(`${path.sep}node_modules${path.sep}`)) fichier = fichier.split(`${path.sep}node_modules${path.sep}`).join(`${path.sep}modules_npm${path.sep}`);
   if (!fs.existsSync(fichier) || fs.statSync(fichier).isDirectory()) fichier = path.join(RACINE, 'index.html');
 
   const ext = path.extname(fichier);

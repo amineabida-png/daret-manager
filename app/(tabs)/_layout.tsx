@@ -18,7 +18,7 @@ export default function OngletsLayout() {
         tabBarActiveTintColor: c.primaire,
         tabBarInactiveTintColor: c.texteDoux,
         tabBarStyle: Platform.OS === 'web'
-          ? { backgroundColor: c.surface, borderTopColor: c.bordure, height: 64 + insets.bottom, paddingTop: 4, paddingBottom: 8 + insets.bottom }
+          ? { backgroundColor: c.surface, borderTopColor: c.bordure, height: 72 + insets.bottom, paddingTop: 6, paddingBottom: 12 + insets.bottom }
           : { backgroundColor: c.surface, borderTopColor: c.bordure, height: 62 + insets.bottom, paddingTop: 6, paddingBottom: 6 + insets.bottom, elevation: 12 },
         tabBarLabelStyle: { fontSize: 12, fontWeight: '600', lineHeight: 18 },
         headerStyle: { backgroundColor: c.fond },
