@@ -79,6 +79,7 @@ const tete = `
       html, body { background: #F2F5F3; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
       @media (prefers-color-scheme: dark) { html, body { background: #0D1311; } }
       input, textarea { font-size: 16px; } /* évite le zoom automatique sur iPhone */
+      input:focus, textarea:focus { outline: none; } /* le cadre vert de l'application suffit */
       html[dir="rtl"] [dir="auto"] { text-align: right; } /* darija : noms latins alignés à droite aussi */
     </style>
     <script>

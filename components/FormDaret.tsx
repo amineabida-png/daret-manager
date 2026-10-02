@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ESPACE, RAYON } from './theme';
 import { Bouton, Champ, ChampDate, Compteur, Info, Ligne, Segment, TexteDoux } from './ui';
@@ -10,7 +10,10 @@ import { t } from '../i18n';
 import { genererDates } from '../utils/calendrier';
 import { formatDH, parseDH } from '../utils/montant';
 
-export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSaisie; onValider: (s: DaretSaisie) => Promise<void>; libelle: string }) {
+/** Nombre maximal de participants proposé à la création. */
+export const MAX_PARTICIPANTS = 60;
+
+export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSaisie; onValider: (s: DaretSaisie, participants: string[]) => Promise<void>; libelle: string }) {
   const { c } = useTheme();
   const debutDefaut = initial?.date_debut ?? aujourdhui();
   const [nom, setNom] = useState(initial?.nom ?? '');
@@ -21,6 +24,9 @@ export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSais
   const [jourSemaine, setJourSemaine] = useState(initial && initial.frequence !== 'mensuelle' ? initial.jour_echeance : jourSemaineISO(debutDefaut));
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [envoi, setEnvoi] = useState(false);
+  const creation = !initial;
+  const [nbParticipants, setNbParticipants] = useState(10);
+  const [noms, setNoms] = useState<string[]>([]);
   const [essai, setEssai] = useState(false);
 
   const montantCentimes = parseDH(montant);
@@ -36,7 +42,11 @@ export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSais
     if (erreurs.nom || erreurs.montant) return;
     setEnvoi(true);
     try {
-      await onValider({ nom: nom.trim(), montant_part: montantCentimes!, frequence, date_debut: dateDebut, jour_echeance: jour, notes: notes.trim() || null });
+      // Participants sans nom : « Participant 3 », renommables ensuite depuis l'onglet Membres
+      const participants = creation
+        ? Array.from({ length: nbParticipants }, (_, i) => noms[i]?.trim() || t('Participant {n}', { n: i + 1 }))
+        : [];
+      await onValider({ nom: nom.trim(), montant_part: montantCentimes!, frequence, date_debut: dateDebut, jour_echeance: jour, notes: notes.trim() || null }, participants);
     } finally {
       setEnvoi(false);
     }
@@ -47,6 +57,10 @@ export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSais
       <Champ label={t('Nom de la daret')} value={nom} onChangeText={setNom} placeholder={t('Ex. Daret de la famille')} erreur={essai ? erreurs.nom : null} autoFocus={!initial} />
       <Champ label={t('Montant par part (DH)')} value={montant} onChangeText={setMontant} placeholder={t('Ex. 1000')} keyboardType="decimal-pad"
         erreur={essai ? erreurs.montant : null} aide={montantCentimes ? t('Chaque membre verse {montant} par part à chaque échéance.', { montant: formatDH(montantCentimes) }) : undefined} />
+      {creation ? (
+        <Compteur label={t('Nombre de participants')} valeur={nbParticipants} min={2} max={MAX_PARTICIPANTS} onChange={setNbParticipants}
+          aide={montantCentimes ? t('Cagnotte par tour : {montant} ({n} tours).', { montant: formatDH(montantCentimes * nbParticipants), n: nbParticipants }) : t('Une personne = un tour. Un membre à 2 parts se règle ensuite dans l\'onglet Membres.')} />
+      ) : null}
       <Segment label={t('Fréquence')} valeur={frequence} onChange={setFrequence}
         options={[{ valeur: 'hebdomadaire', libelle: t('Semaine') }, { valeur: 'bimensuelle', libelle: t('15 jours') }, { valeur: 'mensuelle', libelle: t('Mois') }]} />
       <ChampDate label={t('Date de début')} valeur={dateDebut} onChange={setDateDebut} />
@@ -86,6 +100,23 @@ export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSais
           ))}
         </View>
       </View>
+
+      {creation ? (
+        <View style={{ marginBottom: ESPACE.l }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: c.texteDoux, letterSpacing: 0.2 }}>{t('Noms des participants (dans l\'ordre des tours)')}</Text>
+          <TexteDoux style={{ fontSize: 13, marginBottom: ESPACE.s }}>{t('Facultatif : vous pourrez les compléter plus tard, ajouter les téléphones et changer l\'ordre.')}</TexteDoux>
+          {Array.from({ length: nbParticipants }, (_, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACE.s, marginBottom: 6 }}>
+              <Text style={{ width: 26, textAlign: 'center', fontWeight: '700', color: c.texteDoux }}>{i + 1}</Text>
+              <TextInput value={noms[i] ?? ''} onChangeText={v => setNoms(l => { const n = [...l]; n[i] = v; return n; })}
+                placeholder={t('Participant {n}', { n: i + 1 })} placeholderTextColor={c.texteDoux + 'AA'} autoCapitalize="words"
+                style={{ flex: 1, minHeight: 46, borderWidth: 1.5, borderColor: c.bordure, borderRadius: 12, paddingHorizontal: ESPACE.m, fontSize: 16, color: c.texte, backgroundColor: c.surface }} />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Info icone="people-outline">{t('Pour ajouter ou modifier les participants, utilisez l\'onglet Membres de la daret.')}</Info>
+      )}
 
       <Champ label={t('Notes (facultatif)')} value={notes} onChangeText={setNotes} multiline placeholder={t('Lieu de remise, règles du groupe…')} />
       <Bouton titre={libelle} icone="checkmark" onPress={valider} chargement={envoi} />

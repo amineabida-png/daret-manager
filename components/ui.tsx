@@ -261,8 +261,10 @@ export function ChampDate({ label, valeur, onChange }: { label: string; valeur: 
   );
 }
 
-export function Compteur({ label, valeur, min = 1, max = 10, onChange }: { label: string; valeur: number; min?: number; max?: number; onChange: (n: number) => void }) {
+export function Compteur({ label, valeur, min = 1, max = 10, onChange, aide }: { label: string; valeur: number; min?: number; max?: number; onChange: (n: number) => void; aide?: string }) {
   const { c } = useTheme();
+  const [texte, setTexte] = useState<string | null>(null);
+  const borner = (n: number) => Math.min(max, Math.max(min, n));
   const bouton = (icone: NomIcone, actif: boolean, f: () => void, libelle: string) => (
     <Pressable onPress={f} disabled={!actif} hitSlop={6} accessibilityLabel={libelle}
       style={({ pressed }) => [{ width: 42, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaireClair, opacity: actif ? (pressed ? 0.7 : 1) : 0.4 }]}>
@@ -274,9 +276,13 @@ export function Compteur({ label, valeur, min = 1, max = 10, onChange }: { label
       <Text style={[styles.label, { color: c.texteDoux }]}>{label}</Text>
       <View style={[styles.champ, { backgroundColor: c.surface, borderColor: c.bordure, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 5 }]}>
         {bouton('remove', valeur > min, () => onChange(Math.max(min, valeur - 1)), t('Diminuer'))}
-        <Text style={{ fontSize: 20, fontWeight: '700', color: c.texte }}>{valeur}</Text>
+        <TextInput value={texte ?? String(valeur)} keyboardType="number-pad" selectTextOnFocus maxLength={3} accessibilityLabel={label}
+          onChangeText={v => { const n = parseInt(v.replace(/\D/g, ''), 10); setTexte(v.replace(/\D/g, '')); if (!isNaN(n) && n >= min && n <= max) onChange(n); }}
+          onBlur={() => { const n = parseInt(texte ?? '', 10); if (texte !== null) onChange(borner(isNaN(n) ? valeur : n)); setTexte(null); }}
+          style={{ flex: 1, fontSize: 20, fontWeight: '700', color: c.texte, textAlign: 'center', minHeight: 44, padding: 0 }} />
         {bouton('add', valeur < max, () => onChange(Math.min(max, valeur + 1)), t('Augmenter'))}
       </View>
+      {aide ? <TexteDoux style={{ marginTop: 6, fontSize: 13 }}>{aide}</TexteDoux> : null}
     </View>
   );
 }

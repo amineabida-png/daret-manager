@@ -381,4 +381,16 @@ export const ar: Record<string, string> = {
   "Une erreur est survenue sur le serveur.": "وقع مشكل ف السيرفور.",
   "Des modifications faites sur un autre appareil ont été chargées.": "تحمّلو التبديلات اللي تدارو ف جهاز آخر.",
   "Votre session a expiré. Reconnectez-vous.": "الجلسة سالات. عاود دخل.",
+
+  // Nombre de participants
+  "Participant {n}": "المشارك {n}",
+  "Nombre de participants": "عدد المشاركين",
+  "Cagnotte par tour : {montant} ({n} tours).": "مبلغ كل نوبة: {montant} ({n} نوبات).",
+  "Une personne = un tour. Un membre à 2 parts se règle ensuite dans l'onglet Membres.": "كل واحد = نوبة وحدة. العضو اللي عندو جوج أسهم كيتظبط من بعد ف خانة الأعضاء.",
+  "Noms des participants (dans l'ordre des tours)": "سميات المشاركين (حسب ترتيب النوبات)",
+  "Facultatif : vous pourrez les compléter plus tard, ajouter les téléphones et changer l'ordre.": "اختياري: تقدر تكمّلهم من بعد، تزيد التيليفونات وتبدّل الترتيب.",
+  "Pour ajouter ou modifier les participants, utilisez l'onglet Membres de la daret.": "باش تزيد ولا تبدّل المشاركين، استعمل خانة الأعضاء ف الدارت.",
+  "Ajoute d'un coup des participants numérotés ; vous pourrez saisir leurs noms ensuite.": "كيزيد مشاركين بالنمرة دفعة وحدة؛ تقدر تكتب السميات ديالهم من بعد.",
+  "Ajouter {n} participants": "زيد {n} مشاركين",
+  "Ou un par un": "ولا واحد بواحد",
 };

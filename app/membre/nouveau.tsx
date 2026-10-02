@@ -5,7 +5,8 @@ import * as Contacts from 'expo-contacts';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ESPACE, RAYON } from '../../components/theme';
 import { Avatar, Bouton, Carte, Champ, Compteur, Ecran, Info, Ligne, SousTitre, TexteDoux, afficherErreur } from '../../components/ui';
-import { ajouterMembres, type MembreSaisie } from '../../db/requetes';
+import { ajouterMembres, listerMembres, type MembreSaisie } from '../../db/requetes';
+import { useDonnees } from '../../components/useDonnees';
 import { t } from '../../i18n';
 
 interface ContactSimple { id: string; nom: string; telephone: string | null; }
@@ -20,6 +21,15 @@ export default function NouveauMembre() {
   const [aAjouter, setAAjouter] = useState<MembreSaisie[]>([]);
   const [contacts, setContacts] = useState<ContactSimple[] | null>(null);
   const [envoi, setEnvoi] = useState(false);
+  const [nbRapide, setNbRapide] = useState(10);
+  const existants = useDonnees(() => listerMembres(daretId), [daretId]).data?.length ?? 0;
+
+  /** Ajout rapide : N participants numérotés, à renommer ensuite si besoin. */
+  function ajouterPlusieurs() {
+    setAAjouter(l => [...l, ...Array.from({ length: nbRapide }, (_, i) => ({
+      nom: t('Participant {n}', { n: existants + l.length + i + 1 }), telephone: null, nb_parts: 1, notes: null,
+    }))]);
+  }
 
   function ajouterALaListe() {
     if (!nom.trim()) return;
@@ -51,6 +61,12 @@ export default function NouveauMembre() {
   return (
     <Ecran>
       {Platform.OS !== 'web' ? <Bouton titre={t('Importer depuis mes contacts')} icone="people-outline" variante="secondaire" onPress={() => ouvrirContacts().catch(afficherErreur)} style={{ marginBottom: ESPACE.xl }} /> : null}
+      <Carte>
+        <Compteur label={t('Nombre de participants')} valeur={nbRapide} min={1} max={60} onChange={setNbRapide}
+          aide={t('Ajoute d\'un coup des participants numérotés ; vous pourrez saisir leurs noms ensuite.')} />
+        <Bouton titre={t('Ajouter {n} participants', { n: nbRapide })} icone="people" variante="secondaire" onPress={ajouterPlusieurs} />
+      </Carte>
+      <SousTitre style={{ marginTop: ESPACE.s }}>{t('Ou un par un')}</SousTitre>
       <Champ label={t('Nom')} value={nom} onChangeText={setNom} placeholder={t('Ex. Fatima Zahra')} autoCapitalize="words" />
       <Champ label={t('Téléphone (facultatif)')} value={telephone} onChangeText={setTelephone} placeholder="06 12 34 56 78" keyboardType="phone-pad" aide={t('Utilisé pour les relances WhatsApp.')} />
       <Compteur label={t('Nombre de parts')} valeur={parts} min={1} max={10} onChange={setParts} />

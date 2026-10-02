@@ -142,11 +142,12 @@ describe('avancement de la daret', () => {
     expect(tourCourant(tours.map(t => ({ ...t, remis_le: '2026-02-01' })))?.numero).toBe(3);
     expect(tourCourant([])).toBeUndefined();
   });
-  test('daret commencée : 1re échéance atteinte ou paiement existant', () => {
+  test('daret commencée : 1re échéance dépassée ou paiement existant', () => {
     const tours = [{ date_echeance: '2026-11-05' }, { date_echeance: '2026-12-05' }];
     expect(daretCommencee(tours, 0, '2026-10-01')).toBe(false);
     expect(daretCommencee(tours, 1, '2026-10-01')).toBe(true);
-    expect(daretCommencee(tours, 0, '2026-11-05')).toBe(true);
+    expect(daretCommencee(tours, 0, '2026-11-05')).toBe(false); // le jour J : encore modifiable
+    expect(daretCommencee(tours, 0, '2026-11-06')).toBe(true);
     expect(daretCommencee([], 0, '2026-11-05')).toBe(false);
   });
 });

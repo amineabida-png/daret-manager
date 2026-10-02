@@ -61,5 +61,6 @@ export function daretCommencee(tours: Pick<Tour, 'date_echeance'>[], nbPaiements
   if (nbPaiements > 0) return true;
   if (!tours.length) return false;
   const premiere = tours.reduce((m, t) => (t.date_echeance < m ? t.date_echeance : m), tours[0].date_echeance);
-  return premiere <= aujourdhui;
+  // Le jour même de la 1re échéance, on peut encore compléter la liste (daret créée le jour J)
+  return premiere < aujourdhui;
 }
