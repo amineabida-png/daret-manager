@@ -1,0 +1,56 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# Builds web et Android
+dist-web/
+dist-pages/
+*.apk
+*.aab
+
+# Clé de signature Android : ne jamais publier
+signature/
+*.keystore
+
+# Configuration locale de l'éditeur
+.claude/
+# Licence du modèle Expo (copyright Expo) : à remplacer par la licence choisie pour l'application
+LICENSE

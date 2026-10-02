@@ -1,0 +1,77 @@
+{
+  "expo": {
+    "name": "Daret Manager",
+    "slug": "daret-manager",
+    "scheme": "daretmanager",
+    "version": "1.2.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ma.daretmanager.app"
+    },
+    "android": {
+      "package": "ma.daretmanager.app",
+      "versionCode": 3,
+      "adaptiveIcon": {
+        "backgroundColor": "#1B7F5A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.READ_CONTACTS",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.WRITE_CONTACTS"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro",
+      "name": "Daret Manager",
+      "shortName": "Daret",
+      "themeColor": "#145F43",
+      "backgroundColor": "#F2F5F3",
+      "lang": "fr",
+      "description": "Gestion de daret (tontine marocaine) : membres, tours, cotisations, retards et relances WhatsApp."
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-sharing",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "color": "#1B7F5A"
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Daret Manager a besoin d'accéder à vos contacts pour importer des membres."
+        }
+      ],
+      "expo-system-ui",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#1B7F5A"
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
