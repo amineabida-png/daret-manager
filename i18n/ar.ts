@@ -393,4 +393,16 @@ export const ar: Record<string, string> = {
   "Ajoute d'un coup des participants numérotés ; vous pourrez saisir leurs noms ensuite.": "كيزيد مشاركين بالنمرة دفعة وحدة؛ تقدر تكتب السميات ديالهم من بعد.",
   "Ajouter {n} participants": "زيد {n} مشاركين",
   "Ou un par un": "ولا واحد بواحد",
+
+  // Tirage au sort automatique
+  "Tirage au sort": "القرعة",
+  "Ordre de saisie": "حسب الكتابة",
+  "Après la création, l'application tire au sort qui reçoit la cagnotte au 1er tour, au 2e tour, et ainsi de suite.": "من بعد ما تدير الدارت، التطبيق كيدير القرعة شكون ياخد الفلوس ف النوبة الأولى، الثانية، وهكذا.",
+  "Le 1er nom de la liste reçoit la cagnotte au 1er tour, le 2e au 2e tour, et ainsi de suite.": "أول سمية ف اللائحة كتاخد الفلوس ف النوبة الأولى، الثانية ف النوبة الثانية، وهكذا.",
+  "Noms des participants": "سميات المشاركين",
+  "Le tirage au sort désigne qui reçoit la cagnotte au 1er tour, au 2e tour, et ainsi de suite.": "القرعة كتختار شكون ياخد الفلوس ف النوبة الأولى، الثانية، وهكذا.",
+  "Tirage terminé ! Touchez « Générer le calendrier » pour valider, ou relancez le tirage.": "سالات القرعة! ضغط على « وجّد الجدول » باش تأكّد، ولا عاود القرعة.",
+  "TIRAGE DU TOUR {n}": "القرعة ديال النوبة {n}",
+  "Tout révéler": "بيّن كلشي",
+  "À tirer au sort": "باقي ف القرعة",
 };

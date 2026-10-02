@@ -13,7 +13,9 @@ import { formatDH, parseDH } from '../utils/montant';
 /** Nombre maximal de participants proposé à la création. */
 export const MAX_PARTICIPANTS = 60;
 
-export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSaisie; onValider: (s: DaretSaisie, participants: string[]) => Promise<void>; libelle: string }) {
+export type ChoixOrdre = 'tirage' | 'saisie';
+
+export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSaisie; onValider: (s: DaretSaisie, participants: string[], ordre: ChoixOrdre) => Promise<void>; libelle: string }) {
   const { c } = useTheme();
   const debutDefaut = initial?.date_debut ?? aujourdhui();
   const [nom, setNom] = useState(initial?.nom ?? '');
@@ -27,6 +29,7 @@ export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSais
   const creation = !initial;
   const [nbParticipants, setNbParticipants] = useState(10);
   const [noms, setNoms] = useState<string[]>([]);
+  const [choixOrdre, setChoixOrdre] = useState<ChoixOrdre>('tirage');
   const [essai, setEssai] = useState(false);
 
   const montantCentimes = parseDH(montant);
@@ -46,7 +49,7 @@ export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSais
       const participants = creation
         ? Array.from({ length: nbParticipants }, (_, i) => noms[i]?.trim() || t('Participant {n}', { n: i + 1 }))
         : [];
-      await onValider({ nom: nom.trim(), montant_part: montantCentimes!, frequence, date_debut: dateDebut, jour_echeance: jour, notes: notes.trim() || null }, participants);
+      await onValider({ nom: nom.trim(), montant_part: montantCentimes!, frequence, date_debut: dateDebut, jour_echeance: jour, notes: notes.trim() || null }, participants, choixOrdre);
     } finally {
       setEnvoi(false);
     }
@@ -102,8 +105,14 @@ export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSais
       </View>
 
       {creation ? (
+        <>
+        <Segment<ChoixOrdre> label={t('Ordre des tours')} valeur={choixOrdre} onChange={setChoixOrdre}
+          options={[{ valeur: 'tirage', libelle: t('Tirage au sort'), icone: 'dice-outline' }, { valeur: 'saisie', libelle: t('Ordre de saisie'), icone: 'list-outline' }]} />
+        <Info icone={choixOrdre === 'tirage' ? 'dice-outline' : 'list-outline'}>{choixOrdre === 'tirage'
+          ? t('Après la création, l\'application tire au sort qui reçoit la cagnotte au 1er tour, au 2e tour, et ainsi de suite.')
+          : t('Le 1er nom de la liste reçoit la cagnotte au 1er tour, le 2e au 2e tour, et ainsi de suite.')}</Info>
         <View style={{ marginBottom: ESPACE.l }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: c.texteDoux, letterSpacing: 0.2 }}>{t('Noms des participants (dans l\'ordre des tours)')}</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: c.texteDoux, letterSpacing: 0.2 }}>{choixOrdre === 'tirage' ? t('Noms des participants') : t('Noms des participants (dans l\'ordre des tours)')}</Text>
           <TexteDoux style={{ fontSize: 13, marginBottom: ESPACE.s }}>{t('Facultatif : vous pourrez les compléter plus tard, ajouter les téléphones et changer l\'ordre.')}</TexteDoux>
           {Array.from({ length: nbParticipants }, (_, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACE.s, marginBottom: 6 }}>
@@ -114,6 +123,7 @@ export function FormDaret({ initial, onValider, libelle }: { initial?: DaretSais
             </View>
           ))}
         </View>
+        </>
       ) : (
         <Info icone="people-outline">{t('Pour ajouter ou modifier les participants, utilisez l\'onglet Membres de la daret.')}</Info>
       )}

@@ -89,7 +89,7 @@ La première compilation est longue (plusieurs heures avec 2 tâches parallèles
 - **Nombre de tours** = nombre total de parts : un membre à 2 parts cotise double et apparaît 2 fois dans le calendrier.
 - **Fréquences** : chaque semaine, tous les 15 jours (14 jours), chaque mois. Une échéance le 31 tombe le dernier jour des mois plus courts (28/29 févr., 30 avril…).
 - **Statuts** : ✅ payé · 🟠 partiel (avant l'échéance) · ⏳ en attente · 🔴 en retard (échéance dépassée et montant versé inférieur au dû).
-- **Création** : on indique le **nombre de participants** (et, si on veut, leurs noms dans l'ordre des tours) ; le calendrier est généré aussitôt. Pour une daret existante : *Ajouter des membres* → ajout rapide de N participants.
+- **Création** : on indique le **nombre de participants** et, si on veut, leurs noms. Ordre des tours : **tirage au sort** (par défaut — l'application tire le 1er tour, puis le 2e, etc., avec animation, puis on valide) ou ordre de saisie. Pour une daret existante : *Ajouter des membres* → ajout rapide de N participants ; une fois enregistrés, le tirage au sort démarre automatiquement.
 - **Daret commencée** le lendemain de la 1re échéance ou dès le 1er paiement : la liste des membres est alors figée ; l'ordre ne se change plus que par **échange de deux tours**.
 - La daret passe automatiquement en **« terminée »** quand tous les tours sont remis.
 - **Rappels** à 9 h, 1, 2 ou 3 jours avant chaque échéance, et le jour J s'il reste des impayés (reprogrammés à chaque modification).

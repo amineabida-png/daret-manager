@@ -53,7 +53,9 @@ export default function NouveauMembre() {
     setEnvoi(true);
     try {
       await ajouterMembres(daretId, liste);
-      router.back();
+      // Tous les membres sont saisis : le calendrier est à refaire → tirage au sort automatique
+      if (existants + liste.length >= 2) router.replace({ pathname: '/daret/[id]/ordre', params: { id: daretId, mode: 'tirage', auto: '1' } });
+      else router.back();
     } catch (e) { afficherErreur(e); } finally { setEnvoi(false); }
   }
 

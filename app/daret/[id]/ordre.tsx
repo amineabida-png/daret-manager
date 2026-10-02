@@ -24,9 +24,15 @@ function versParts(ordre: number[]): Part[] {
 
 export default function OrdreTours() {
   const { c } = useTheme();
-  const id = Number(useLocalSearchParams<{ id: string }>().id);
+  const params = useLocalSearchParams<{ id: string; mode?: string; auto?: string }>();
+  const id = Number(params.id);
+  const auto = params.auto === '1';
   const { data } = useDonnees(() => chargerDetailDaret(id), [id]);
-  const [mode, setMode] = useState<ModeOrdre>('inscription');
+  // Par défaut : tirage au sort (1er tour, 2e tour… tirés un par un)
+  const [mode, setMode] = useState<ModeOrdre>(params.mode === 'inscription' || params.mode === 'manuel' ? params.mode : 'tirage');
+  const [reveles, setReveles] = useState(0);
+  const [tourEnTirage, setTourEnTirage] = useState(0);
+  const autoLance = useRef(false);
   const [manuel, setManuel] = useState<Part[] | null>(null);
   const [tirage, setTirage] = useState<number[] | null>(null);
   const [animation, setAnimation] = useState<string | null>(null);
@@ -42,9 +48,59 @@ export default function OrdreTours() {
   const ordre = useMemo<number[] | null>(() => {
     if (!data) return null;
     if (mode === 'inscription') return ordreInscription(data.membres);
-    if (mode === 'tirage') return tirage;
+    if (mode === 'tirage') return tirage && reveles >= tirage.length ? tirage : null;
     return manuel?.map(p => p.membreId) ?? null;
-  }, [data, mode, tirage, manuel]);
+  }, [data, mode, tirage, reveles, manuel]);
+
+  /**
+   * Tirage au sort position par position : pour chaque tour, les noms restants défilent
+   * puis le bénéficiaire est révélé (1er tour, 2e tour, et ainsi de suite).
+   */
+  function lancerTirage() {
+    if (!data) return;
+    const final = ordreTirage(data.membres);
+    const nom = new Map(data.membres.map(m => [m.id, m.nom]));
+    if (minuterie.current) clearInterval(minuterie.current);
+    setTirage(final);
+    setReveles(0);
+    let position = 0, tic = 0, pause = 0;
+    const tics = final.length > 15 ? 5 : 9;
+    setTourEnTirage(1);
+    minuterie.current = setInterval(() => {
+      // Le nom tiré reste affiché un instant avant de passer au tour suivant
+      if (pause > 0) { pause--; return; }
+      if (tic === 0) setTourEnTirage(position + 1);
+      const restants = final.slice(position);
+      setAnimation(nom.get(restants[Math.floor(Math.random() * restants.length)]) ?? '');
+      Haptics.selectionAsync().catch(() => {});
+      if (++tic >= tics) {
+        tic = 0;
+        setAnimation(nom.get(final[position]) ?? '');
+        position++;
+        setReveles(position);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        if (position >= final.length) {
+          clearInterval(minuterie.current!);
+          setAnimation(null);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        } else pause = final.length > 15 ? 3 : 6;
+      }
+    }, 95);
+  }
+
+  function toutReveler() {
+    if (minuterie.current) clearInterval(minuterie.current);
+    setAnimation(null);
+    if (tirage) setReveles(tirage.length);
+  }
+
+  // Arrivée depuis la création ou l'ajout de membres : le tirage démarre tout seul
+  useEffect(() => {
+    if (auto && data && !autoLance.current && mode === 'tirage' && !data.commencee && data.membres.length >= 2) {
+      autoLance.current = true;
+      lancerTirage();
+    }
+  });
 
   if (!data) return <Chargement />;
   if (data.commencee) return <Ecran><EtatVide icone="lock-closed-outline" titre={t('Daret commencée')} message={t('L\'ordre ne peut plus être refait. Utilisez « Échanger 2 tours » pour inverser deux bénéficiaires.')} action={t('Échanger deux tours')} onAction={() => router.replace(`/daret/${id}/echanger`)} /></Ecran>;
@@ -53,29 +109,12 @@ export default function OrdreTours() {
   const membres = new Map(data.membres.map(m => [m.id, m]));
   const dates = genererDates(data.daret.date_debut, data.daret.frequence, data.daret.jour_echeance, data.totalParts);
 
-  function lancerTirage() {
-    if (!data) return;
-    let n = 0;
-    const noms = data.membres.map(m => m.nom);
-    if (minuterie.current) clearInterval(minuterie.current);
-    minuterie.current = setInterval(() => {
-      setAnimation(noms[Math.floor(Math.random() * noms.length)]);
-      Haptics.selectionAsync().catch(() => {});
-      if (++n >= 18) {
-        clearInterval(minuterie.current!);
-        setAnimation(null);
-        setTirage(ordreTirage(data.membres));
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }
-    }, 90);
-  }
-
   async function valider() {
     if (!ordre) return;
     setEnvoi(true);
     try {
       await definirOrdre(id, mode, ordre);
-      router.back();
+      if (auto) router.replace(`/daret/${id}`); else router.back();
     } catch (e) { afficherErreur(e); } finally { setEnvoi(false); }
   }
 
@@ -86,18 +125,24 @@ export default function OrdreTours() {
       ]} />
       <Info>
         {mode === 'inscription' && t('Les tours suivent l\'ordre d\'ajout des membres. Un membre à plusieurs parts reçoit des tours consécutifs.')}
-        {mode === 'tirage' && t('Tirez au sort l\'ordre des tours. Vous pouvez relancer autant de fois que nécessaire avant de valider.')}
+        {mode === 'tirage' && (tirage && reveles >= tirage.length && !animation
+          ? t('Tirage terminé ! Touchez « Générer le calendrier » pour valider, ou relancez le tirage.')
+          : t('Le tirage au sort désigne qui reçoit la cagnotte au 1er tour, au 2e tour, et ainsi de suite.'))}
         {mode === 'manuel' && (Platform.OS === 'web' ? t('Utilisez les flèches pour changer la place d\'un membre.') : t('Maintenez un nom appuyé puis faites-le glisser pour changer sa place.'))}
       </Info>
       {mode === 'tirage' && (
         <View style={{ marginBottom: ESPACE.m }}>
-          {animation ? (
-            <View style={{ alignItems: 'center', padding: ESPACE.xl, backgroundColor: c.orClair, borderRadius: RAYON, marginBottom: ESPACE.m }}>
-              <Ionicons name="dice" size={34} color={c.or} />
-              <Text style={{ fontSize: 26, fontWeight: '700', color: c.texte, marginTop: ESPACE.s }}>{animation}</Text>
+          {animation !== null ? (
+            <View style={{ alignItems: 'center', padding: ESPACE.l, backgroundColor: c.orClair, borderRadius: RAYON, marginBottom: ESPACE.m }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: c.sombre ? c.or : '#8A6A0C', letterSpacing: 0.6 }}>{t('TIRAGE DU TOUR {n}', { n: tourEnTirage })}</Text>
+              <Ionicons name="dice" size={32} color={c.or} style={{ marginTop: ESPACE.s }} />
+              <Text style={{ fontSize: 26, fontWeight: '700', color: c.texte, marginTop: ESPACE.s }} numberOfLines={1}>{animation}</Text>
+              <Pressable onPress={toutReveler} hitSlop={10} style={{ marginTop: ESPACE.m }}>
+                <Text style={{ color: c.primaire, fontWeight: '700' }}>{t('Tout révéler')}</Text>
+              </Pressable>
             </View>
           ) : null}
-          <Bouton titre={tirage ? t('Relancer le tirage') : t('Lancer le tirage au sort')} icone="dice-outline" variante="or" onPress={lancerTirage} desactive={!!animation} />
+          <Bouton titre={tirage ? t('Relancer le tirage') : t('Lancer le tirage au sort')} icone="dice-outline" variante="or" onPress={lancerTirage} desactive={animation !== null} />
         </View>
       )}
     </View>
@@ -105,7 +150,7 @@ export default function OrdreTours() {
 
   const pied = (
     <View style={{ padding: ESPACE.l, width: '100%', maxWidth: LARGEUR_MAX, alignSelf: 'center' }}>
-      <Bouton titre={t('Générer le calendrier')} icone="calendar" onPress={valider} chargement={envoi} desactive={!ordre || !!animation} />
+      <Bouton titre={t('Générer le calendrier')} icone="calendar" onPress={valider} chargement={envoi} desactive={!ordre || animation !== null} />
     </View>
   );
 
@@ -153,7 +198,11 @@ export default function OrdreTours() {
       <Ecran style={{ padding: 0 }}>
         {entete}
         <View style={{ paddingHorizontal: ESPACE.l }}>
-          {ordre ? ordre.map((mid, i) => <ElementTour key={i} rang={i + 1} membre={membres.get(mid)!} date={dates[i]} />)
+          {mode === 'tirage' && tirage
+            ? tirage.map((mid, i) => i < reveles
+              ? <ElementTour key={i} rang={i + 1} membre={membres.get(mid)!} date={dates[i]} actif={i === reveles - 1 && animation !== null} />
+              : <ElementAttente key={i} rang={i + 1} date={dates[i]} />)
+            : ordre ? ordre.map((mid, i) => <ElementTour key={i} rang={i + 1} membre={membres.get(mid)!} date={dates[i]} />)
             : <TexteDoux style={{ textAlign: 'center', marginTop: ESPACE.l }}>{t('Lancez le tirage pour voir l\'ordre.')}</TexteDoux>}
         </View>
       </Ecran>
@@ -200,5 +249,25 @@ function FlecheOrdre({ icone, libelle, actif, onPress }: { icone: 'chevron-up' |
         backgroundColor: c.primaireClair, opacity: actif ? (pressed ? 0.7 : 1) : 0.3 })}>
       <Ionicons name={icone} size={20} color={c.primaire} />
     </Pressable>
+  );
+}
+
+/** Place pas encore tirée au sort. */
+function ElementAttente({ rang, date }: { rang: number; date: string }) {
+  const { c } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACE.m, padding: ESPACE.m, marginBottom: ESPACE.s, borderRadius: RAYON, borderWidth: 1,
+      borderStyle: 'dashed', borderColor: c.bordure, backgroundColor: c.surface2 }}>
+      <View style={{ width: 30, alignItems: 'center' }}>
+        <Text style={{ fontWeight: '700', fontSize: 16, color: c.texteDoux }}>{rang}</Text>
+      </View>
+      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.fond, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="help" size={18} color={c.texteDoux} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: c.texteDoux }}>{t('À tirer au sort')}</Text>
+        <TexteDoux style={{ fontSize: 13 }}>{formatDateCourte(date)}</TexteDoux>
+      </View>
+    </View>
   );
 }
