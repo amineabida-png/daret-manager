@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Daret Manager</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  <meta name="description" content="Gestion de daret (tontine marocaine) : membres, tours, cotisations, retards et relances WhatsApp.">
+
+    <link rel="manifest" href="/daret-manager/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/daret-manager/icones/icone-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/daret-manager/icones/icone-192.png" />
+    <link rel="apple-touch-icon" href="/daret-manager/icones/icone-180.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Daret" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="theme-color" content="#145F43" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0D1311" media="(prefers-color-scheme: dark)" />
+    <style>
+      html, body { background: #F2F5F3; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+      @media (prefers-color-scheme: dark) { html, body { background: #0D1311; } }
+      input, textarea { font-size: 16px; } /* évite le zoom automatique sur iPhone */
+      input:focus, textarea:focus { outline: none; } /* le cadre vert de l'application suffit */
+      html[dir="rtl"] [dir="auto"] { text-align: right; } /* darija : noms latins alignés à droite aussi */
+    </style>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () { navigator.serviceWorker.register('/daret-manager/sw.js', { scope: '/daret-manager/' }).catch(function () {}); });
+      }
+    </script>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  <script src="/daret-manager/_expo/static/js/web/entry-8a1d5117be1b62b5f80c8b191851131c.js" defer></script>
+</body>
+</html>
