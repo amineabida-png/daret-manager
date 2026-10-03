@@ -46,5 +46,5 @@ http.createServer(async (req, res) => {
   }
 }).listen(PORT, () => {
   console.log(`Daret Manager en ligne sur le port ${PORT}`);
-  api.initialiser().then(() => console.log(process.env.DATABASE_URL ? 'PostgreSQL prêt (schéma daret_manager)' : 'Sans base : synchronisation désactivée')).catch(e => console.error('PostgreSQL :', e.message));
+  api.initialiser().then(() => { console.log(process.env.DATABASE_URL ? 'PostgreSQL prêt (schéma daret_manager)' : 'Sans base : synchronisation désactivée'); api.demarrerSauvegardes(); }).catch(e => console.error('PostgreSQL :', e.message));
 });

@@ -26,11 +26,20 @@ export default function CompteEcran() {
     try {
       const r = await connecter(mode, email, mdp);
       if (r === 'conflit') {
-        const ok = await confirmer(
+        // 1er choix proposé : fusionner (rien n'est perdu) ; sinon garder seulement le compte ; sinon annuler
+        if (await confirmer(
           t('Ce compte contient déjà des darets'),
-          t('Cet appareil contient aussi des darets. Remplacer les données de cet appareil par celles du compte ?\n\nPour garder celles de l\'appareil, annulez puis exportez une sauvegarde.'),
-          t('Utiliser le compte'), false);
-        if (!ok) { annulerConnexion(); return; }
+          t('Cet appareil contient aussi des darets. Les réunir avec celles du compte ? Rien n\'est perdu : les darets identiques sont combinées, les autres ajoutées.'),
+          t('Fusionner'), false)) {
+          const f = await choisirDonnees('fusion');
+          if (f) informer(t('Fusion terminée'), t('{a} daret(s) ajoutée(s), {c} combinée(s), {p} paiement(s) récupéré(s).', { a: f.ajoutees, c: f.combinees, p: f.paiementsAjoutes }));
+          router.back();
+          return;
+        }
+        if (!(await confirmer(t('Garder seulement le compte ?'), t('Les darets de cet appareil seront remplacées par celles du compte.\n\nPour les garder, annulez puis exportez une sauvegarde.'), t('Utiliser le compte')))) {
+          annulerConnexion();
+          return;
+        }
         await choisirDonnees('compte');
       }
       informer(t('Synchronisation activée'), t('Vos darets sont enregistrées en ligne et suivront ce compte sur tous vos appareils.'));

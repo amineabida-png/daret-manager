@@ -8,6 +8,7 @@ import { AppState, Platform } from 'react-native';
 import { db, signalerChangement, surChangement } from '../db';
 import { exporterTout, importerTout, type Sauvegarde } from '../db/sauvegarde';
 import { t } from '../i18n';
+import { fusionner, type ResultatFusion } from './fusion';
 
 const SERVEUR = 'https://darete.up.railway.app';
 /** Sur un site Railway (quel que soit son domaine), l'API est à la même adresse. */
@@ -193,16 +194,32 @@ export async function connecter(mode: 'connexion' | 'inscription', email: string
 
 let pendant: { version: number; contenu: Sauvegarde | null } | null = null;
 
-/** Après un conflit : « compte » charge les données du compte, « appareil » les remplace par celles de l'appareil. */
-export async function choisirDonnees(choix: 'compte' | 'appareil'): Promise<void> {
-  if (!session || !pendant) return;
+/**
+ * Après un conflit : « fusion » réunit les darets du compte et de l'appareil (rien n'est perdu),
+ * « compte » charge les données du compte, « appareil » les remplace par celles de l'appareil.
+ */
+export async function choisirDonnees(choix: 'fusion' | 'compte' | 'appareil'): Promise<ResultatFusion | null> {
+  if (!session || !pendant) return null;
   await enregistrerSession(session);
   changerEtat({ email: session.email, statut: 'en_cours', message: null });
-  if (choix === 'compte') await appliquerDonneesServeur(pendant.contenu!, pendant.version);
-  else await envoyer();
+  let resultat: ResultatFusion | null = null;
+  if (choix === 'fusion') {
+    resultat = fusionner(pendant.contenu!, await exporterTout(), t(' (cet appareil)'));
+    // Les données fusionnées remplacent celles de l'appareil puis partent sur le compte
+    importEnCours = true;
+    try { await importerTout(resultat.sauvegarde); } finally { importEnCours = false; }
+    session.version = pendant.version;
+    pendant = null;
+    await envoyer();
+  } else if (choix === 'compte') {
+    await appliquerDonneesServeur(pendant.contenu!, pendant.version);
+  } else {
+    await envoyer();
+  }
   pendant = null;
   changerEtat({ statut: 'a_jour', derniere: new Date().toISOString() });
   signalerChangement();
+  return resultat;
 }
 
 /** Abandonne une connexion en conflit sans rien modifier. */
@@ -253,4 +270,21 @@ export async function lireDaretPublique(jeton: string): Promise<DaretPublique> {
   const r = await fetch(`${API}/api/public/${encodeURIComponent(jeton)}`).catch(() => { throw new ErreurApi(0, 'hors_ligne'); });
   if (!r.ok) throw new ErreurApi(r.status, r.status === 404 ? 'lien_invalide' : 'erreur');
   return r.json();
+}
+
+/* ---------- Sauvegardes quotidiennes du serveur ---------- */
+export interface SauvegardeServeur { id: number; jour: string; type: 'quotidienne' | 'avant_restauration'; version: number; cree_le: string; nb_darets: number; nb_paiements: number }
+
+export async function listerSauvegardesServeur(): Promise<SauvegardeServeur[]> {
+  if (!session) throw new ErreurApi(401, 'non_connecte');
+  return (await appel<{ sauvegardes: SauvegardeServeur[] }>('GET', '/api/sauvegardes')).sauvegardes;
+}
+
+/** Remet le compte dans l'état d'une sauvegarde, puis recharge les données sur cet appareil. */
+export async function restaurerSauvegardeServeur(id: number): Promise<void> {
+  if (!session) throw new ErreurApi(401, 'non_connecte');
+  await envoyer();
+  await appel('POST', `/api/sauvegardes/${id}/restaurer`);
+  await recuperer();
+  signalerChangement();
 }

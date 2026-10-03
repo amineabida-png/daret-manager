@@ -49,6 +49,7 @@ export default function ParametresEcran() {
             sousTitre={synchro.statut === 'en_cours' ? t('Synchronisation…')
               : synchro.statut === 'a_jour' ? t('Synchronisé · {heure}', { heure: synchro.derniere ? new Date(synchro.derniere).toLocaleTimeString(data.langue === 'ar' ? 'ar-MA' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }) : '' })
               : synchro.message ?? t('Hors ligne : les modifications seront envoyées plus tard.')} />
+          <LigneMenu icone="time-outline" titre={t('Sauvegardes du serveur')} sousTitre={t('Une copie par jour, gardée 30 jours')} onPress={() => router.push('/sauvegardes')} />
           <LigneMenu icone="sync-outline" titre={t('Synchroniser maintenant')} chargement={occupe === 'synchro'}
             onPress={() => action('synchro', async () => { await envoyer(); await recuperer(); })} />
           <LigneMenu icone="log-out-outline" titre={t('Se déconnecter')} couleur={c.danger} onPress={() => action('deco', async () => {

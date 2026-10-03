@@ -40,6 +40,17 @@ async function initialiser() {
       cree_le TIMESTAMPTZ NOT NULL DEFAULT now(),
       UNIQUE (compte_id, daret_id)
     );
+    CREATE TABLE IF NOT EXISTS daret_manager.sauvegardes (
+      id SERIAL PRIMARY KEY,
+      compte_id INTEGER NOT NULL REFERENCES daret_manager.comptes(id) ON DELETE CASCADE,
+      jour DATE NOT NULL DEFAULT current_date,
+      type TEXT NOT NULL DEFAULT 'quotidienne',
+      version INTEGER NOT NULL,
+      contenu JSONB NOT NULL,
+      cree_le TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS sauvegardes_une_par_jour ON daret_manager.sauvegardes (compte_id, jour) WHERE type = 'quotidienne';
+    CREATE INDEX IF NOT EXISTS sauvegardes_compte ON daret_manager.sauvegardes (compte_id, cree_le DESC);
     CREATE TABLE IF NOT EXISTS daret_manager.donnees (
       compte_id INTEGER PRIMARY KEY REFERENCES daret_manager.comptes(id) ON DELETE CASCADE,
       version INTEGER NOT NULL DEFAULT 0,
@@ -47,6 +58,30 @@ async function initialiser() {
       maj_le TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+}
+
+/* ---------- Sauvegarde automatique quotidienne ---------- */
+const JOURS_CONSERVES = 30;
+
+/**
+ * Copie du jour de chaque compte (une seule par jour : l'état au premier passage de la journée),
+ * puis suppression des copies de plus de 30 jours. Lancée au démarrage puis toutes les heures.
+ */
+async function sauvegardeQuotidienne() {
+  if (!pool) return;
+  const r = await pool.query(`
+    INSERT INTO daret_manager.sauvegardes (compte_id, version, contenu)
+    SELECT compte_id, version, contenu FROM daret_manager.donnees WHERE contenu IS NOT NULL
+    ON CONFLICT (compte_id, jour) WHERE type = 'quotidienne' DO NOTHING`);
+  const s = await pool.query(`DELETE FROM daret_manager.sauvegardes WHERE cree_le < now() - interval '${JOURS_CONSERVES} days'`);
+  if (r.rowCount || s.rowCount) console.log(`Sauvegarde quotidienne : ${r.rowCount} compte(s) copié(s), ${s.rowCount} ancienne(s) copie(s) supprimée(s)`);
+}
+
+function demarrerSauvegardes() {
+  if (!pool) return;
+  const lancer = () => sauvegardeQuotidienne().catch(e => console.error('Sauvegarde quotidienne :', e.message));
+  lancer();
+  setInterval(lancer, 60 * 60 * 1000);
 }
 
 /* ---------- Mots de passe et jetons ---------- */
@@ -198,6 +233,10 @@ async function traiter(req, res) {
     if (url === '/api/donnees' && req.method === 'PUT') {
       const { version_base: base, contenu } = await lireCorps(req);
       if (!contenu || contenu.application !== 'daret-manager') return repondre(res, 400, { erreur: 'contenu_invalide' }), true;
+      // Copie du jour prise avant la première modification de la journée
+      await pool.query(`INSERT INTO daret_manager.sauvegardes (compte_id, version, contenu)
+        SELECT compte_id, version, contenu FROM daret_manager.donnees WHERE compte_id = $1 AND contenu IS NOT NULL
+        ON CONFLICT (compte_id, jour) WHERE type = 'quotidienne' DO NOTHING`, [compte.id]);
       // Mise à jour seulement si personne n'a écrit entre-temps (version attendue)
       const r = await pool.query(
         `UPDATE daret_manager.donnees SET contenu = $1, version = version + 1, maj_le = now()
@@ -207,6 +246,25 @@ async function traiter(req, res) {
         return repondre(res, 409, { erreur: 'version_depassee', version: actuel.rows[0]?.version ?? 0 }), true;
       }
       return repondre(res, 200, { version: r.rows[0].version, maj_le: r.rows[0].maj_le }), true;
+    }
+
+    if (url === '/api/sauvegardes' && req.method === 'GET') {
+      const r = await pool.query(
+        `SELECT id, jour, type, version, cree_le, jsonb_array_length(COALESCE(contenu->'darets', '[]'::jsonb)) AS nb_darets,
+                jsonb_array_length(COALESCE(contenu->'paiements', '[]'::jsonb)) AS nb_paiements
+         FROM daret_manager.sauvegardes WHERE compte_id = $1 ORDER BY cree_le DESC LIMIT 60`, [compte.id]);
+      return repondre(res, 200, { sauvegardes: r.rows }), true;
+    }
+    const rest = /^\/api\/sauvegardes\/(\d+)\/restaurer$/.exec(url);
+    if (rest && req.method === 'POST') {
+      const s = await pool.query('SELECT contenu FROM daret_manager.sauvegardes WHERE id = $1 AND compte_id = $2', [Number(rest[1]), compte.id]);
+      if (!s.rowCount) return repondre(res, 404, { erreur: 'introuvable' }), true;
+      // L'état actuel est gardé avant d'être remplacé : la restauration peut elle-même être annulée
+      await pool.query(`INSERT INTO daret_manager.sauvegardes (compte_id, type, version, contenu)
+        SELECT compte_id, 'avant_restauration', version, contenu FROM daret_manager.donnees WHERE compte_id = $1 AND contenu IS NOT NULL`, [compte.id]);
+      const r = await pool.query('UPDATE daret_manager.donnees SET contenu = $1, version = version + 1, maj_le = now() WHERE compte_id = $2 RETURNING version',
+        [s.rows[0].contenu, compte.id]);
+      return repondre(res, 200, { version: r.rows[0].version }), true;
     }
 
     if (url === '/api/compte' && req.method === 'DELETE') {
@@ -222,4 +280,4 @@ async function traiter(req, res) {
   return true;
 }
 
-module.exports = { initialiser, traiter };
+module.exports = { initialiser, traiter, demarrerSauvegardes };
