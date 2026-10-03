@@ -33,6 +33,13 @@ async function initialiser() {
       compte_id INTEGER NOT NULL REFERENCES daret_manager.comptes(id) ON DELETE CASCADE,
       expire_le TIMESTAMPTZ NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS daret_manager.partages (
+      jeton TEXT PRIMARY KEY,
+      compte_id INTEGER NOT NULL REFERENCES daret_manager.comptes(id) ON DELETE CASCADE,
+      daret_id INTEGER NOT NULL,
+      cree_le TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (compte_id, daret_id)
+    );
     CREATE TABLE IF NOT EXISTS daret_manager.donnees (
       compte_id INTEGER PRIMARY KEY REFERENCES daret_manager.comptes(id) ON DELETE CASCADE,
       version INTEGER NOT NULL DEFAULT 0,
@@ -68,12 +75,12 @@ async function compteDeLaRequete(req) {
 
 /* ---------- Limitation des tentatives de connexion ---------- */
 const tentatives = new Map();
-function tropDeTentatives(cle) {
+function tropDeTentatives(cle, max = 10) {
   const maintenant = Date.now();
   const l = (tentatives.get(cle) || []).filter(t => maintenant - t < 15 * 60 * 1000);
   l.push(maintenant);
   tentatives.set(cle, l);
-  return l.length > 10;
+  return l.length > max;
 }
 
 /* ---------- Utilitaires HTTP ---------- */
@@ -134,8 +141,48 @@ async function traiter(req, res) {
       return true;
     }
 
+    // Consultation publique d'une daret partagée (lecture seule, sans numéros de téléphone)
+    const pub = /^\/api\/public\/([A-Za-z0-9_-]{16,64})$/.exec(url);
+    if (pub && req.method === 'GET') {
+      if (tropDeTentatives(`p:${ip(req)}`, 120)) return repondre(res, 429, { erreur: 'trop_de_tentatives' }), true;
+      const r = await pool.query(
+        `SELECT p.daret_id, d.contenu, d.maj_le FROM daret_manager.partages p JOIN daret_manager.donnees d ON d.compte_id = p.compte_id WHERE p.jeton = $1`, [pub[1]]);
+      const ligne = r.rows[0];
+      const c = ligne && ligne.contenu;
+      const daret = c && (c.darets || []).find(x => x.id === ligne.daret_id);
+      if (!daret) return repondre(res, 404, { erreur: 'lien_invalide' }), true;
+      const tours = (c.tours || []).filter(x => x.daret_id === daret.id);
+      const idsTours = new Set(tours.map(x => x.id));
+      return repondre(res, 200, {
+        maj_le: ligne.maj_le,
+        daret: { id: daret.id, nom: daret.nom, montant_part: daret.montant_part, frequence: daret.frequence, date_debut: daret.date_debut, jour_echeance: daret.jour_echeance, statut: daret.statut },
+        membres: (c.membres || []).filter(x => x.daret_id === daret.id).map(x => ({ id: x.id, nom: x.nom, nb_parts: x.nb_parts, rang_inscription: x.rang_inscription })),
+        tours: tours.map(x => ({ id: x.id, numero: x.numero, beneficiaire_id: x.beneficiaire_id, date_echeance: x.date_echeance, remis_le: x.remis_le })),
+        paiements: (c.paiements || []).filter(x => idsTours.has(x.tour_id)).map(x => ({ tour_id: x.tour_id, membre_id: x.membre_id, montant: x.montant, date_paiement: x.date_paiement })),
+      }), true;
+    }
+
     const compte = await compteDeLaRequete(req);
     if (!compte) return repondre(res, 401, { erreur: 'non_connecte' }), true;
+
+    if (url === '/api/partages' && req.method === 'GET') {
+      const r = await pool.query('SELECT daret_id, jeton FROM daret_manager.partages WHERE compte_id = $1', [compte.id]);
+      return repondre(res, 200, { partages: r.rows }), true;
+    }
+    if (url === '/api/partages' && req.method === 'POST') {
+      const { daret_id: daretId } = await lireCorps(req);
+      if (!Number.isInteger(daretId)) return repondre(res, 400, { erreur: 'daret_invalide' }), true;
+      const existant = await pool.query('SELECT jeton FROM daret_manager.partages WHERE compte_id = $1 AND daret_id = $2', [compte.id, daretId]);
+      if (existant.rowCount) return repondre(res, 200, { jeton: existant.rows[0].jeton }), true;
+      const jeton = crypto.randomBytes(18).toString('base64url');
+      await pool.query('INSERT INTO daret_manager.partages (jeton, compte_id, daret_id) VALUES ($1, $2, $3)', [jeton, compte.id, daretId]);
+      return repondre(res, 201, { jeton }), true;
+    }
+    const supp = /^\/api\/partages\/(\d+)$/.exec(url);
+    if (supp && req.method === 'DELETE') {
+      await pool.query('DELETE FROM daret_manager.partages WHERE compte_id = $1 AND daret_id = $2', [compte.id, Number(supp[1])]);
+      return repondre(res, 200, { ok: true }), true;
+    }
 
     if (url === '/api/deconnexion' && req.method === 'POST') {
       await pool.query('DELETE FROM daret_manager.sessions WHERE jeton_hash = $1', [hashJeton(req.headers.authorization.slice(7))]);

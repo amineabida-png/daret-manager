@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,7 @@ import { resumeTour } from '../../../utils/statuts';
 import { recapitulatifTour } from '../../../utils/partage';
 import { exporterCSV, partagerTexte } from '../../../utils/fichiers';
 import { libelleMode } from '../../../utils/partage';
+import { arreterPartage, daretsPartagees, estConnecte, lienDePartage, messageErreur } from '../../../utils/synchro';
 import { t, tn } from '../../../i18n';
 
 type Onglet = 'tours' | 'membres' | 'historique';
@@ -239,6 +240,23 @@ function LigneHistorique({ nom, montant, detail, onLongPress }: { nom: string; m
 function Actions({ d }: { d: DetailDaret }) {
   const { c } = useTheme();
   const id = d.daret.id;
+  const [partagee, setPartagee] = useState(false);
+  const [occupe, setOccupe] = useState(false);
+  useEffect(() => { daretsPartagees().then(s => setPartagee(s.has(id))).catch(() => {}); }, [id]);
+
+  async function partagerLien() {
+    if (!estConnecte()) {
+      if (await confirmer(t('Compte en ligne requis'), t('Pour partager un lien, la daret doit être enregistrée en ligne. Créer un compte ou se connecter maintenant ?'), t('Continuer'), false)) router.push('/compte');
+      return;
+    }
+    setOccupe(true);
+    try {
+      const lien = await lienDePartage(id);
+      setPartagee(true);
+      await partagerTexte(t('Suivez notre daret « {nom} » (calendrier et paiements, mis à jour automatiquement) : {lien}', { nom: d.daret.nom, lien }));
+    } catch (e) { afficherErreur(new Error(messageErreur(e))); } finally { setOccupe(false); }
+  }
+
   async function partager() {
     const tc = d.courant;
     if (!tc) return;
@@ -249,6 +267,15 @@ function Actions({ d }: { d: DetailDaret }) {
       <SousTitre>{t('Actions')}</SousTitre>
       <Groupe>
         {d.courant ? <LigneMenu icone="share-social-outline" titre={t('Partager le récapitulatif')} sousTitre={t('Tour en cours, payés et retards')} onPress={() => partager().catch(afficherErreur)} /> : null}
+        <LigneMenu icone="link-outline" titre={t('Lien pour les membres')} chargement={occupe}
+          sousTitre={partagee ? t('Lien actif · les membres consultent sans pouvoir modifier') : t('Calendrier et paiements en lecture seule, sans les téléphones')} onPress={partagerLien} />
+        {partagee ? (
+          <LigneMenu icone="link-outline" couleur={c.texteDoux} titre={t('Désactiver le lien')} onPress={async () => {
+            if (await confirmer(t('Désactiver le lien ?'), t('Les personnes qui ont le lien ne pourront plus consulter la daret.'), t('Désactiver'))) {
+              try { await arreterPartage(id); setPartagee(false); } catch (e) { afficherErreur(new Error(messageErreur(e))); }
+            }
+          }} />
+        ) : null}
         <LigneMenu icone="create-outline" titre={t('Modifier la daret')} sousTitre={t('Nom, montant, rythme, notes')} onPress={() => router.push(`/daret/${id}/modifier`)} />
         {d.paiements.length ? <LigneMenu icone="document-text-outline" titre={t('Exporter l\'historique')} sousTitre={t('Fichier CSV lisible par Excel')} onPress={() => exporterCSV(id).catch(afficherErreur)} /> : null}
         {d.daret.statut !== 'archivee' ? (

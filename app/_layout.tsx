@@ -46,6 +46,7 @@ function Navigation() {
         <Stack.Screen name="membre/[id]/index" options={{ title: t('Fiche membre') }} />
         <Stack.Screen name="membre/[id]/modifier" options={{ title: t('Modifier le membre'), presentation: 'modal' }} />
         <Stack.Screen name="compte" options={{ title: t('Compte en ligne'), presentation: 'modal' }} />
+        <Stack.Screen name="p/[jeton]" options={{ title: 'Daret Manager' }} />
       </Stack>
     </View>
   );

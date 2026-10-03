@@ -142,3 +142,9 @@ Paramètres → **Compte en ligne** : créer un compte (e-mail + mot de passe) p
 - **Sécurité** : mots de passe hachés (scrypt), jetons de session stockés hachés (SHA-256), 10 tentatives de connexion max. par quart d'heure, accès limité au site GitHub Pages et au site Railway.
 - **Fonctionnement** : chaque modification est envoyée 1,5 s plus tard ; les changements des autres appareils sont récupérés à l'ouverture et chaque minute. Un numéro de version empêche un appareil d'écraser sans le savoir les modifications d'un autre. Sans connexion Internet, l'application continue de fonctionner et envoie les modifications au retour du réseau.
 - **API** : `POST /api/inscription`, `POST /api/connexion`, `POST /api/deconnexion`, `GET /api/donnees`, `PUT /api/donnees`, `DELETE /api/compte`.
+
+## Partage, reçus et tirage en public (version 1.5.0)
+
+- **Lien pour les membres** (daret → Actions) : nécessite un compte en ligne. Génère une adresse secrète `https://darete.up.railway.app/p/<jeton>` : calendrier, bénéficiaires et statuts de paiement en lecture seule, **sans les téléphones ni les notes**, mis à jour automatiquement. « Désactiver le lien » le coupe immédiatement. API : `POST/GET /api/partages`, `DELETE /api/partages/:daret`, `GET /api/public/:jeton` (table `daret_manager.partages`).
+- **Reçu PDF** (écran d'un tour, sous chaque membre ayant versé) : reçu numéroté `R-daret-tour-membre` avec le détail des versements. Téléphone : PDF via `expo-print` puis menu de partage (WhatsApp…). Navigateur : ouverture du reçu et impression / « Enregistrer en PDF ».
+- **Mode présentation du tirage** (écran « Ordre des tours ») : plein écran, noms en très grand, écran maintenu allumé (`expo-keep-awake`), disposition en deux colonnes sur écran large (projecteur, tablette couchée).

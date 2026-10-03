@@ -277,6 +277,7 @@ export function Compteur({ label, valeur, min = 1, max = 10, onChange, aide }: {
       <View style={[styles.champ, { backgroundColor: c.surface, borderColor: c.bordure, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 5 }]}>
         {bouton('remove', valeur > min, () => onChange(Math.max(min, valeur - 1)), t('Diminuer'))}
         <TextInput value={texte ?? String(valeur)} keyboardType="number-pad" selectTextOnFocus maxLength={3} accessibilityLabel={label}
+          onFocus={() => setTexte('')} placeholder={String(valeur)}
           onChangeText={v => { const n = parseInt(v.replace(/\D/g, ''), 10); setTexte(v.replace(/\D/g, '')); if (!isNaN(n) && n >= min && n <= max) onChange(n); }}
           onBlur={() => { const n = parseInt(texte ?? '', 10); if (texte !== null) onChange(borner(isNaN(n) ? valeur : n)); setTexte(null); }}
           style={{ flex: 1, fontSize: 20, fontWeight: '700', color: c.texte, textAlign: 'center', minHeight: 44, padding: 0 }} />

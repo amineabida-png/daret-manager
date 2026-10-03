@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +35,7 @@ export default function OrdreTours() {
   const [reveles, setReveles] = useState(0);
   const [tourEnTirage, setTourEnTirage] = useState(0);
   const autoLance = useRef(false);
+  const [presentation, setPresentation] = useState(false);
   const [manuel, setManuel] = useState<Part[] | null>(null);
   const [tirage, setTirage] = useState<number[] | null>(null);
   const [animation, setAnimation] = useState<string | null>(null);
@@ -143,10 +146,25 @@ export default function OrdreTours() {
             </View>
           ) : null}
           <Bouton titre={tirage ? t('Relancer le tirage') : t('Lancer le tirage au sort')} icone="dice-outline" variante="or" onPress={lancerTirage} desactive={animation !== null} />
+          <Bouton titre={t('Mode présentation (plein écran)')} icone="expand-outline" variante="secondaire" petit style={{ marginTop: ESPACE.s }}
+            onPress={() => {
+              // Navigateur : vrai plein écran (doit partir directement du geste de l'utilisateur)
+              if (Platform.OS === 'web') document.documentElement.requestFullscreen?.().catch(() => {});
+              setPresentation(true);
+            }} />
         </View>
       )}
     </View>
   );
+
+  const ecranPresentation = presentation ? (
+    <Presentation nomDaret={data.daret.nom} tirage={tirage} reveles={reveles} animation={animation} tourEnTirage={tourEnTirage}
+      noms={new Map(data.membres.map(m => [m.id, m.nom]))} dates={dates} onLancer={lancerTirage} onToutReveler={toutReveler}
+      onFermer={() => {
+        if (Platform.OS === 'web' && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        setPresentation(false);
+      }} />
+  ) : null;
 
   const pied = (
     <View style={{ padding: ESPACE.l, width: '100%', maxWidth: LARGEUR_MAX, alignSelf: 'center' }}>
@@ -207,7 +225,96 @@ export default function OrdreTours() {
         </View>
       </Ecran>
       {pied}
+      {ecranPresentation}
     </View>
+  );
+}
+
+/**
+ * Tirage en plein écran, lisible de loin : à projeter ou à filmer devant le groupe.
+ * L'écran reste allumé pendant la présentation.
+ */
+function Presentation({ nomDaret, tirage, reveles, animation, tourEnTirage, noms, dates, onLancer, onToutReveler, onFermer }: {
+  nomDaret: string; tirage: number[] | null; reveles: number; animation: string | null; tourEnTirage: number;
+  noms: Map<number, string>; dates: string[]; onLancer: () => void; onToutReveler: () => void; onFermer: () => void;
+}) {
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const grand = Math.min(width, height * 1.4);
+  const fini = !!tirage && reveles >= tirage.length && animation === null;
+  // Écran large (projecteur, tablette couchée) : tirage à gauche, résultats à droite
+  const paysage = width > height && width >= 700;
+  const colonnes = paysage ? (width > 1150 ? 2 : 1) : width > 640 ? 2 : 1;
+  // Taille du nom tiré : la plus grande possible sans dépasser la largeur disponible
+  const largeurNom = (paysage ? width / 2 : width) - 60;
+  const tailleNom = (n: string | null) => Math.max(28, Math.min(grand * 0.11, largeurNom / Math.max(4, (n ?? '').length * 0.62)));
+  useEffect(() => {
+    activateKeepAwakeAsync('tirage').catch(() => {});
+    return () => { try { deactivateKeepAwake('tirage'); } catch { /* rien */ } };
+  }, []);
+  const or = '#E6BE45';
+  return (
+    <Modal visible animationType="fade" onRequestClose={onFermer} statusBarTranslucent>
+      <View style={{ flex: 1, backgroundColor: '#0E4733', paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12, paddingHorizontal: 20 }}>
+        <View style={{ position: 'absolute', width: grand * 0.9, height: grand * 0.9, borderRadius: grand, backgroundColor: '#145F43', top: -grand * 0.35, right: -grand * 0.3 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: or, fontWeight: '800', letterSpacing: 2, fontSize: Math.max(13, grand * 0.022) }}>{t('TIRAGE AU SORT')}</Text>
+            <Text style={{ color: '#FFF', fontWeight: '700', fontSize: Math.max(20, grand * 0.04) }} numberOfLines={1}>{nomDaret}</Text>
+          </View>
+          <Pressable onPress={onFermer} accessibilityLabel={t('Fermer')} hitSlop={12}
+            style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="close" size={28} color="#FFF" />
+          </Pressable>
+        </View>
+
+        <View style={{ flex: 1, flexDirection: paysage ? 'row' : 'column', gap: 20, marginTop: 12 }}>
+        <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: grand * 0.03, flex: paysage ? 1 : undefined, minHeight: paysage ? undefined : grand * (fini ? 0.28 : 0.42) }}>
+          {animation !== null ? (
+            <>
+              <Text style={{ color: or, fontWeight: '800', letterSpacing: 2, fontSize: Math.max(16, grand * 0.035) }}>{t('TIRAGE DU TOUR {n}', { n: tourEnTirage })}</Text>
+              <Ionicons name="dice" size={Math.max(48, grand * 0.1)} color={or} style={{ marginVertical: grand * 0.02 }} />
+              <Text style={{ color: '#FFF', fontWeight: '800', fontSize: tailleNom(animation), textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit>{animation}</Text>
+            </>
+          ) : fini ? (
+            <>
+              <Ionicons name="trophy" size={Math.max(48, grand * 0.1)} color={or} />
+              <Text style={{ color: '#FFF', fontWeight: '800', fontSize: Math.max(30, grand * 0.07), textAlign: 'center', marginTop: grand * 0.02 }}>{t('Tirage terminé !')}</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="dice-outline" size={Math.max(56, grand * 0.13)} color={or} />
+              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: Math.max(22, grand * 0.045), textAlign: 'center', marginTop: grand * 0.02 }}>{t('Prêts pour le tirage ?')}</Text>
+            </>
+          )}
+        </View>
+
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: paysage ? 'flex-start' : 'center', alignContent: 'flex-start' }}>
+          {(tirage ?? []).slice(0, reveles).map((mid, i) => (
+            <View key={i} style={{ width: colonnes === 1 ? '100%' : `${100 / colonnes - 1.5}%`, flexDirection: 'row', alignItems: 'center', gap: 12,
+              backgroundColor: i === reveles - 1 && animation !== null ? 'rgba(230,190,69,0.25)' : 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: or, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontWeight: '800', fontSize: 20, color: '#241C05' }}>{i + 1}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: Math.max(18, grand * 0.032) }} numberOfLines={1}>{noms.get(mid)}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>{formatDateCourte(dates[i])}</Text>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center', marginTop: 12 }}>
+          {animation !== null ? (
+            <Bouton titre={t('Tout révéler')} icone="flash-outline" variante="secondaire" onPress={onToutReveler} style={{ minWidth: 200 }} />
+          ) : (
+            <Bouton titre={tirage ? t('Relancer le tirage') : t('Lancer le tirage au sort')} icone="dice-outline" variante="or" onPress={onLancer} style={{ minWidth: 240 }} />
+          )}
+          {fini ? <Bouton titre={t('Fermer')} icone="checkmark" onPress={onFermer} style={{ minWidth: 160 }} /> : null}
+        </View>
+      </View>
+    </Modal>
   );
 }
 

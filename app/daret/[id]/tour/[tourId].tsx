@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,8 @@ import { aujourdhui, formatDateLongue } from '../../../../utils/dates';
 import { resumeTour } from '../../../../utils/statuts';
 import { lienWhatsApp, recapitulatifTour, remplirModele } from '../../../../utils/partage';
 import { ouvrirLien, partagerTexte } from '../../../../utils/fichiers';
+import { nomFichierRecu, recuHTML, type DonneesRecu } from '../../../../utils/recu';
+import { envoyerRecuPDF } from '../../../../utils/recu-envoi';
 import type { LigneStatut, ModePaiement } from '../../../../types';
 import { t, tn } from '../../../../i18n';
 
@@ -45,6 +47,16 @@ export default function PaiementsTour() {
       await payerReste(tour!.id, l.membre, data!.daret.montant_part);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (e) { afficherErreur(e); }
+  }
+
+  /** Reçu PDF du membre pour ce tour (menu de partage sur téléphone, impression sur le web). */
+  function envoyerRecu(l: LigneStatut) {
+    const fenetre = Platform.OS === 'web' ? window.open('', '_blank') : null;
+    const d: DonneesRecu = {
+      daret: data!.daret, tour: tour!, nbTours: data!.tours.length, ligne: l, beneficiaire: benef?.nom ?? '—',
+      paiements: data!.paiements.filter(p => p.tour_id === tour!.id && p.membre_id === l.membre.id),
+    };
+    envoyerRecuPDF(recuHTML(d), nomFichierRecu(d), fenetre).catch(afficherErreur);
   }
 
   async function relancer(l: LigneStatut) {
@@ -100,6 +112,13 @@ export default function PaiementsTour() {
             </View>
             <BadgeStatut statut={l.statut} complement={l.statut === 'en_retard' ? t('{n} j', { n: l.joursRetard }) : undefined} />
           </Ligne>
+          {l.verse > 0 ? (
+            <Pressable onPress={() => envoyerRecu(l)} hitSlop={6} accessibilityRole="button"
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: ESPACE.s, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: c.primaireClair, opacity: pressed ? 0.7 : 1 })}>
+              <Ionicons name="receipt-outline" size={16} color={c.primaire} />
+              <Text style={{ color: c.primaire, fontWeight: '700', fontSize: 13 }}>{t('Reçu PDF')}</Text>
+            </Pressable>
+          ) : null}
           {l.statut === 'en_retard' ? (
             <Bouton titre={t('Relancer sur WhatsApp')} icone="logo-whatsapp" variante="whatsapp" petit onPress={() => relancer(l).catch(afficherErreur)} style={{ marginTop: ESPACE.m }} />
           ) : null}

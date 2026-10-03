@@ -84,6 +84,8 @@ export function messageErreur(e: unknown): string {
     case 'mot_de_passe_court': return t('Le mot de passe doit contenir au moins 8 caractères.');
     case 'trop_de_tentatives': return t('Trop de tentatives. Réessayez dans 15 minutes.');
     case 'base_indisponible': return t('Le serveur est momentanément indisponible.');
+    case 'lien_invalide': return t('Ce lien n\'existe pas ou a été désactivé.');
+    case 'non_connecte': return t('Connectez-vous à un compte en ligne pour partager un lien.');
     default: return e instanceof Error && !(e instanceof ErreurApi) ? e.message : t('Une erreur est survenue sur le serveur.');
   }
 }
@@ -214,4 +216,41 @@ export async function deconnecter(): Promise<void> {
   if (session) await appel('POST', '/api/deconnexion').catch(() => {});
   await enregistrerSession(null);
   changerEtat({ email: null, statut: 'deconnecte', derniere: null, message: null });
+}
+
+/* ---------- Lien de consultation en lecture seule ---------- */
+export const adresseServeur = () => SERVEUR;
+export const estConnecte = () => !!session;
+
+/** Crée (ou retrouve) le lien public d'une daret, après avoir envoyé les dernières données. */
+export async function lienDePartage(daretId: number): Promise<string> {
+  if (!session) throw new ErreurApi(401, 'non_connecte');
+  await envoyer();
+  const r = await appel<{ jeton: string }>('POST', '/api/partages', { daret_id: daretId });
+  return `${SERVEUR}/p/${r.jeton}`;
+}
+
+export async function arreterPartage(daretId: number): Promise<void> {
+  await appel('DELETE', `/api/partages/${daretId}`);
+}
+
+export async function daretsPartagees(): Promise<Set<number>> {
+  if (!session) return new Set();
+  const r = await appel<{ partages: { daret_id: number }[] }>('GET', '/api/partages');
+  return new Set(r.partages.map(p => p.daret_id));
+}
+
+export interface DaretPublique {
+  maj_le: string;
+  daret: { id: number; nom: string; montant_part: number; frequence: 'hebdomadaire' | 'bimensuelle' | 'mensuelle'; date_debut: string; jour_echeance: number; statut: string };
+  membres: { id: number; nom: string; nb_parts: number; rang_inscription: number }[];
+  tours: { id: number; numero: number; beneficiaire_id: number; date_echeance: string; remis_le: string | null }[];
+  paiements: { tour_id: number; membre_id: number; montant: number; date_paiement: string }[];
+}
+
+/** Lecture d'une daret partagée (sans compte). */
+export async function lireDaretPublique(jeton: string): Promise<DaretPublique> {
+  const r = await fetch(`${API}/api/public/${encodeURIComponent(jeton)}`).catch(() => { throw new ErreurApi(0, 'hors_ligne'); });
+  if (!r.ok) throw new ErreurApi(r.status, r.status === 404 ? 'lien_invalide' : 'erreur');
+  return r.json();
 }
